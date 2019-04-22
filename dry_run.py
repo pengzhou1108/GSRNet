@@ -52,8 +52,8 @@ IMG_SIZE=300
 add_noise=False
 add_jpeg=False
 add_scale=False
-vis=True
-F1=False
+vis=False
+F1=True
 AUC=False
 vis_gan=False
 tar_img_name='/vulcan/scratch/pengzhou/dataset/train2014/COCO_train2014_000000427154.jpg'
@@ -97,6 +97,10 @@ def get_arguments():
                         help="Where to save predicted mask.")
     parser.add_argument("--dataset", type=str, default='coco',
                         help="Where to save predicted mask.")
+    parser.add_argument("--vis", type=bool,default=vis)
+    parser.add_argument("--vis_gan", type=bool,default=vis_gan)
+    parser.add_argument("--F1", type=bool,default=F1)
+    parser.add_argument("--AUC", type=bool,default=AUC)    
     return parser.parse_args()
 
 def load(saver, sess, ckpt_path):
@@ -286,7 +290,7 @@ def main():
     image = tf.cast(img,tf.float32) - IMG_MEAN 
 
 
-    if vis_gan:
+    if args.vis_gan:
       tar_img=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 3))
       target_image =tf.cast(tar_img,tf.float32) - IMG_MEAN 
       seg_mask = tf.cast(seg_mask,tf.float32)
@@ -305,7 +309,7 @@ def main():
     # Which variables to load.
     #pdb.set_trace()
     restore_var_2 = [v for v in tf.global_variables() if ('discriminator' in v.name)]
-    if vis_gan:
+    if args.vis_gan:
       restore_var_2 = [v for v in tf.global_variables() if ('generator' in v.name) or ('discriminator' in v.name)]
 
     # Predictions.
@@ -415,7 +419,7 @@ def main():
           #gt_mask =np.zeros((IMG_SIZE,IMG_SIZE))
           image_data=cv2.resize(image_data,(IMG_SIZE,IMG_SIZE))
 
-          if vis and vis_gan:
+          if args.vis and args.vis_gan:
             if not os.path.exists(args.save_dir):
               os.makedirs(args.save_dir)
             tar_image_data=cv2.imread(tar_img_name)
@@ -453,7 +457,7 @@ def main():
           seg_pred_mask = seg_pred_scores[0,:,:,0]
             
 
-          if F1:
+          if args.F1:
             f_var = np.zeros(50)
             mcc_var = np.zeros(50)
             for var in range(50):
@@ -474,7 +478,7 @@ def main():
 
             f1 +=[f_var.max()]
             mcc += [mcc_var.max()]
-            if vis:
+            if args.vis:
               cv2.imwrite(args.save_dir+'/'+os.path.splitext(os.path.basename(imgname))[0]+'.png', pred_mask*255)
               image_data = cv2.resize(image_data,(im_w,im_h))
               ind_var = f_var.argmax()
@@ -508,11 +512,11 @@ def main():
               plt.close(fig)
               print('The output file has been saved to {}'.format(args.save_dir + 'mask.png'))
 
-    if AUC:
+    if args.AUC:
         fpr, tpr, thresholds = metrics.roc_curve(label, score, pos_label=1)
         print('AUC: %f' % metrics.auc(fpr, tpr))
 
-    if F1:
+    if args.F1:
 
         print('F1 score: %f' % np.array(f1).mean())
         print('MCC score: %f' % np.array(mcc).mean())

@@ -286,11 +286,11 @@ def main():
       args.img_path='../../dataset/COVERAGE'
       data_file='cover_single_seg.txt'      
     elif args.dataset=='single_img': 
+      data_file=None
     img=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 3))
     seg_mask=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 1))
 
     image = tf.cast(img,tf.float32) - IMG_MEAN 
-
 
     if args.vis_gan:
       tar_img=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 3))
@@ -351,12 +351,13 @@ def main():
     acc1=0
     acc2=0
     kernel = np.ones((15,15),np.uint8)
-    #with open(os.path.join(args.img_path,data_file)) as f:
-    #with open('./relight_lb.txt','r') as f:
-    #f=glob.glob('/vulcan/scratch/koutilya/core3d_data/new_RGB_data/RGB_real_corrupted_with_building_masks/input_image_*')
-    #f=glob.glob('/vulcan/scratch/venkai/CORE3D/superres/Data/yaser/input/Faceforensics_c23_2k/*.png')
-    f=glob.glob('/vulcan/scratch/venkai/CORE3D/superres/Data/yaser/results_SR_x2_rgb_L2/Faceforensics_c23_2k/*.png')
-    #f=[args.single_img]
+    if data_file:
+      f=open(os.path.join(args.img_path,data_file))
+    else:
+      #f=glob.glob('/vulcan/scratch/koutilya/core3d_data/new_RGB_data/RGB_real_corrupted_with_building_masks/input_image_*')
+      #f=glob.glob('/vulcan/scratch/venkai/CORE3D/superres/Data/yaser/input/Faceforensics_c23_2k/*.png')
+      f=glob.glob('/vulcan/scratch/venkai/CORE3D/superres/Data/yaser/results_SR_x2_rgb_L2/Faceforensics_c23_2k/*.png')
+      #f=[args.single_img]
     if True:
       for line in f:
           imgname=line.split(' ')[0].strip()
@@ -423,7 +424,7 @@ def main():
             tar_image_data=cv2.imread(tar_img_name)
             tar_image_data=cv2.resize(tar_image_data,(IMG_SIZE,IMG_SIZE))
             
-            preds,pred_scores, edge_pred_scoresz, g_output_im,cp_im= sess.run([pred,pred_score,edge_pred_score,g_output,image_cp],{img:image_data.astype(np.uint8),tar_img:tar_image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
+            preds,pred_scores, edge_pred_scores, g_output_im,cp_im= sess.run([pred,pred_score,edge_pred_score,g_output,image_cp],{img:image_data.astype(np.uint8),tar_img:tar_image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
 
             if not os.path.exists(args.save_dir +'/'+ os.path.splitext(os.path.basename(imgname))[0]+'_gan.png'):
 

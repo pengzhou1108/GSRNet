@@ -53,7 +53,7 @@ add_noise=False
 add_jpeg=False
 add_scale=False
 vis=False
-F1=True
+F1=False
 AUC=False
 vis_gan=False
 tar_img_name='/vulcan/scratch/pengzhou/dataset/train2014/COCO_train2014_000000427154.jpg'
@@ -96,6 +96,8 @@ def get_arguments():
     parser.add_argument("--save-dir", type=str, default=SAVE_DIR,
                         help="Where to save predicted mask.")
     parser.add_argument("--dataset", type=str, default='coco',
+                        help="Where to save predicted mask.")
+    parser.add_argument("--single_img", type=str, default='Sp_D_NNN_A_art0084_cha0033_0302.jpg',
                         help="Where to save predicted mask.")
     parser.add_argument("--vis", type=bool,default=vis)
     parser.add_argument("--vis_gan", type=bool,default=vis_gan)
@@ -283,7 +285,7 @@ def main():
     elif args.dataset=='COVERAGE':
       args.img_path='../../dataset/COVERAGE'
       data_file='cover_single_seg.txt'      
- 
+    elif args.dataset=='single_img': 
     img=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 3))
     seg_mask=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 1))
 
@@ -301,11 +303,11 @@ def main():
 
     with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE) as scope:
       DeepNet=DeepLabLFOVModel(None) 
-      f_net, f_edgenet, f_segnet = DeepNet._create_network(tf.expand_dims(image, dim=0), 1.0, num_classes=args.num_classes, use_fuse=True)
+      f_net, f_edgenet = DeepNet._create_network(tf.expand_dims(image, dim=0), 1.0, num_classes=args.num_classes, use_fuse=True)
       # Predictions.
       f_output = f_net
       f_edge_output = f_edgenet
-      f_seg_output = f_segnet
+      
     # Which variables to load.
     #pdb.set_trace()
     restore_var_2 = [v for v in tf.global_variables() if ('discriminator' in v.name)]
@@ -325,11 +327,7 @@ def main():
     raw_output_up = tf.argmax(raw_output_up, dimension=3)
     edge_pred = tf.expand_dims(raw_output_up, dim=3)
 
-    raw_output = f_seg_output
-    raw_output_up = tf.image.resize_bilinear(raw_output, tf.shape(img)[0:2,])
-    seg_pred_score=tf.nn.softmax(raw_output_up)
-    raw_output_up = tf.argmax(raw_output_up, dimension=3)
-    seg_pred = tf.expand_dims(raw_output_up, dim=3)
+
 
     # Set up TF session and initialize variables. 
     config = tf.ConfigProto()
@@ -358,7 +356,7 @@ def main():
     #f=glob.glob('/vulcan/scratch/koutilya/core3d_data/new_RGB_data/RGB_real_corrupted_with_building_masks/input_image_*')
     #f=glob.glob('/vulcan/scratch/venkai/CORE3D/superres/Data/yaser/input/Faceforensics_c23_2k/*.png')
     f=glob.glob('/vulcan/scratch/venkai/CORE3D/superres/Data/yaser/results_SR_x2_rgb_L2/Faceforensics_c23_2k/*.png')
-    #f=['Sp_D_NNN_A_art0084_cha0033_0302.jpg']
+    #f=[args.single_img]
     if True:
       for line in f:
           imgname=line.split(' ')[0].strip()
@@ -400,14 +398,14 @@ def main():
 
               image_data=cv2.imread(imgname)
               mask_data = int(line.split(' ')[1])
-          elif args.dataset=='no_mask':
+          elif args.dataset=='single_img':
 
               image_data=cv2.imread(imgname)
               mask_data = np.zeros((IMG_SIZE,IMG_SIZE))
           else:
               image_data=cv2.imread(os.path.join(args.img_path,imgname))
-              mask=(cv2.imread(os.path.join(args.img_path,line.strip().split(' ')[1]),cv2.IMREAD_UNCHANGED)>200).astype(np.uint8)
-              mask_data = cv2.resize(mask, (IMG_SIZE,IMG_SIZE))
+              mask_data = np.zeros((IMG_SIZE,IMG_SIZE))
+
           if add_jpeg:
             # jpeg
             cv2.imwrite('b.jpg',image_data,[cv2.IMWRITE_JPEG_QUALITY, 70])
@@ -425,7 +423,7 @@ def main():
             tar_image_data=cv2.imread(tar_img_name)
             tar_image_data=cv2.resize(tar_image_data,(IMG_SIZE,IMG_SIZE))
             
-            preds,pred_scores, edge_pred_scores,seg_pred_scores, g_output_im,cp_im= sess.run([pred,pred_score,edge_pred_score,seg_pred_score,g_output,image_cp],{img:image_data.astype(np.uint8),tar_img:tar_image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
+            preds,pred_scores, edge_pred_scoresz, g_output_im,cp_im= sess.run([pred,pred_score,edge_pred_score,g_output,image_cp],{img:image_data.astype(np.uint8),tar_img:tar_image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
 
             if not os.path.exists(args.save_dir +'/'+ os.path.splitext(os.path.basename(imgname))[0]+'_gan.png'):
 
@@ -447,14 +445,13 @@ def main():
                 plt.close(fig)  
             #seg_msk = decode_labels(seg_preds, num_classes=args.num_classes)
           else:
-            preds,pred_scores, edge_pred_scores,seg_pred_scores = sess.run([pred,pred_score,edge_pred_score,seg_pred_score],{img:image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
+            preds,pred_scores, edge_pred_scores = sess.run([pred,pred_score,edge_pred_score],{img:image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
 
           if not os.path.exists(args.save_dir):
               os.makedirs(args.save_dir)
 
           pred_mask = pred_scores[0,:,:,1]
           edge_pred_mask = edge_pred_scores[0,:,:,1]
-          seg_pred_mask = seg_pred_scores[0,:,:,0]
             
 
           if args.F1:
@@ -487,26 +484,22 @@ def main():
 
               im_seg1 = remove_isolated_pixels(im_seg1)
               edge_seg = (edge_pred_mask>0.01*ind_var).astype(np.uint8)
-              seg_seg = (seg_pred_mask>0.01*ind_var).astype(np.uint8)
 
               im_seg2= ndimage.binary_erosion(im_seg1, structure=np.ones((3,3))).astype(im_seg.dtype)
               im_seg4=cv2.morphologyEx(im_seg2, cv2.MORPH_CLOSE, kernel, iterations=2)
 
               fig=plt.figure()
-              plt.subplot(151)
+              plt.subplot(141)
               plt.imshow(image_data[:,:,::-1].astype(np.uint8))
               plt.axis('off')
-              plt.subplot(152)
+              plt.subplot(142)
               plt.imshow(im_seg4,cmap='gray')
               plt.axis('off')
-              plt.subplot(153)
+              plt.subplot(143)
               plt.imshow(edge_seg,cmap='gray')
               plt.axis('off')
-              plt.subplot(154)
+              plt.subplot(144)
               plt.imshow(gt_mask,cmap='gray')
-              plt.axis('off')
-              plt.subplot(155)
-              plt.imshow(seg_seg,cmap='gray')
               plt.axis('off')
               fig.savefig(args.save_dir +'/'+ os.path.splitext(os.path.basename(imgname))[0]+'_cmp.png',bbox_inches='tight')
               plt.close(fig)

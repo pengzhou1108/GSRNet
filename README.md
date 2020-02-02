@@ -38,4 +38,13 @@ python3 dry_run.py --model_weights='./snapshots/$FIXME' --dataset='$FIXME' --sav
 3. visualize generated images:
 python3 dry_run.py --model_weights='./snapshots/$FIXME' --dataset='$FIXME' --save-dir='./output/$FIXME/' --vis=True --vis_gan=True
 
-
+# Citation:
+If this code or dataset helps your research, please cite our paper:
+```
+@inproceedings{zhou2020generate,
+  title={Generate, Segment, and Refine: Towards Generic Manipulation Segmentation},
+  author={Zhou, Peng and Chen, Bor-Chun and Han, Xintong and Najibi, Mahyar and Shrivastava, Abhinav and Lim, Ser Nam and Davis, Larry S},
+  booktitle = {AAAI},
+  year={2020}
+}
+```

@@ -13,8 +13,18 @@ pip install -r requirements.txt
 
 Refer to```https://github.com/DrSleep/tensorflow-deeplab-lfov``` for more detail
 
+# Prepare tfrecords for dataset
+1. Change the arguments of ```dataset, train_dir, mask_dir, output_directory```, to corresponding directories.
+
+2. Run ```python3 im_pre_casia_pair.py```
+
+3. The tfrecords for COCO and CASIA are provided in
+https://drive.google.com/open?id=1vIAFsftjmHg2J5lJgO92C1Xmyw539p_B 
+
+
 # Train the model:
-Run ```train_default.sh```
+1. Change the tfrecords directory in ```train_default.sh```
+2. Run ```train_default.sh```
 
 
 # Test the model

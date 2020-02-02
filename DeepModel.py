@@ -170,11 +170,11 @@ class DeepLabLFOVModel(object):
         if use_fuse:
           edgenet=utils_conv(tf.concat([block_1, block_2, block_3], axis=-1), num_classes, stride=1, padding='SAME', name='fc8_voc12_edge')
           #edgenet=utils_conv(current_final, num_classes, stride=1, padding='SAME', name='fc8_voc12_edge')
-          current = utils_conv(current, num_classes, stride=1, padding='SAME', name='fc8_voc12')
-          current =  tf.image.resize_bilinear(current,edgenet.get_shape()[1:3])
+          segnet = utils_conv(current, num_classes, stride=1, padding='SAME', name='fc8_voc12')
+          current =  tf.image.resize_bilinear(segnet,edgenet.get_shape()[1:3])
           current = tf.concat([current, edgenet], axis=-1)
           current = utils_conv(current, num_classes, stride=1, padding='SAME', name='fc9_voc12')
-          return current, edgenet
+          return current, edgenet, segnet
         else:
           current = utils_conv(current, num_classes, stride=1, padding='SAME', name='fc8_voc12')
 

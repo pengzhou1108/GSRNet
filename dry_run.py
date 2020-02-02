@@ -31,37 +31,23 @@ import glob
 IMG_MEAN = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)
     
 NUM_CLASSES = 2
-SAVE_DIR = './output/deeplab/casia1'
-DATA_PATH='../../dataset/NC2016_Test0613'
-DATA_PATH='../../dataset/filter_tamper'
 
-DATA_PATH = '/vulcan/scratch/pengzhou/dataset/4cam_splc'
-#DATA_PATH='../../dataset/CASIA1'
+
+
+DATA_PATH='../../dataset/CASIA1'
 MASK_DIR='../../dataset/train2014'
-data_file='NIST_test_seg_new_2.txt'
-#data_file='NIST_test_split_seg.txt'
-data_file='test_filter_single.txt'
-data_file='test_all_1.txt'
 data_file='test_dvmm_split.txt'
-#data_file='dvmm_seg.txt'
-#DATA_PATH='../../dataset/tifs-database/DSO-1'
-#data_file='test_dso_split.txt'
-#data_file='test_dso.txt'
-#IMG_SIZE=256
+
 IMG_SIZE=300
 add_noise=False
 add_jpeg=False
 add_scale=False
-vis=False
+vis=True
 F1=False
 AUC=False
 vis_gan=False
-tar_img_name='/vulcan/scratch/pengzhou/dataset/train2014/COCO_train2014_000000427154.jpg'
-#tar_img_name='/vulcan/scratch/pengzhou/dataset/train2014/COCO_train2014_000000000382.jpg'
-#tar_img_name='/vulcan/scratch/pengzhou/dataset/train2014/COCO_train2014_000000001200.jpg'
-#tar_img_name='/vulcan/scratch/pengzhou/dataset/train2014/COCO_train2014_000000001392.jpg'
-#tar_img_name='/vulcan/scratch/pengzhou/dataset/train2014/COCO_train2014_000000001637.jpg'
-def remove_isolated_pixels(image,top=3):
+
+def remove_isolated_pixels(image,top=5):
     connectivity = 8
     output = cv2.connectedComponentsWithStats(image, connectivity, cv2.CV_32S)
 
@@ -71,8 +57,6 @@ def remove_isolated_pixels(image,top=3):
     new_image = image.copy()
     if num_stats>0:
       indexes_group = np.argsort(stats[:, cv2.CC_STAT_AREA])
-      #stats = stats[indexes_group]    
-      #pdb.set_trace()
       for component_id, label in enumerate(indexes_group[:-top]):
           new_image[labels == label] = 0
 
@@ -95,14 +79,10 @@ def get_arguments():
                         help="Number of classes to predict (including background).")
     parser.add_argument("--save-dir", type=str, default=SAVE_DIR,
                         help="Where to save predicted mask.")
-    parser.add_argument("--dataset", type=str, default='coco',
-                        help="Where to save predicted mask.")
     parser.add_argument("--single_img", type=str, default='Sp_D_NNN_A_art0084_cha0033_0302.jpg',
                         help="Where to save predicted mask.")
-    parser.add_argument("--vis", type=bool,default=vis)
-    parser.add_argument("--vis_gan", type=bool,default=vis_gan)
-    parser.add_argument("--F1", type=bool,default=F1)
-    parser.add_argument("--AUC", type=bool,default=AUC)    
+    parser.add_argument("--dataset", type=str, default='coco',
+                        help="Where to save predicted mask.")
     return parser.parse_args()
 
 def load(saver, sess, ckpt_path):
@@ -202,6 +182,7 @@ def create_generator(image, generator_outputs_channels, is_training=True):
     rectified = tf.nn.relu(input)
     output = deconv(rectified, generator_outputs_channels)
     output = tf.tanh(output)
+    
     layers.append(output)
 
   return layers[-1]
@@ -218,8 +199,11 @@ def generator(gt_image, gt_mask, target_im, target_mask, is_training=False):
     gt_mask = joint_input[:,:,:,3:4]
     target_im = joint_input[:,:,:,4:7]
     image = tf.multiply(gt_image, tf.cast(gt_mask,tf.float32)) + tf.multiply(target_im, (1-tf.cast(gt_mask,tf.float32)))
+
     out_channels = int(gt_image.get_shape()[-1])
+
     outputs = create_generator(tf.concat([image, tf.cast(gt_mask,tf.float32)], axis=-1), out_channels, is_training)
+
     seg_outputs = outputs[:,:,:,0:3]
     #seg_outputs = image
     seg_outputs = (seg_outputs/2+0.5)*255-IMG_MEAN
@@ -239,6 +223,8 @@ def generator(gt_image, gt_mask, target_im, target_mask, is_training=False):
                                  rates=[1,1,1,1],
                                  padding='SAME')
     label_edge = label_dilation - label_erosion -2
+    #edge_loss = tf.losses.mean_squared_error(predictions=tf.multiply(seg_outputs,tf.cast(gt_mask,tf.float32)), labels=tf.multiply(target_im, tf.cast(gt_mask,tf.float32)))
+    #edge_loss = tf.losses.mean_squared_error(predictions=tf.multiply(seg_outputs,tf.cast(label_edge,tf.float32)), labels=tf.multiply(gt_image, tf.cast(label_edge,tf.float32)))
     edge_loss = tf.reduce_mean(tf.abs(tf.multiply(seg_outputs,tf.cast(label_edge,tf.float32)) - tf.multiply(gt_image, tf.cast(label_edge,tf.float32))))
     gradient_loss = grad_loss1 + 2*edge_loss
     seg_outputs = tf.image.resize_bilinear(seg_outputs, [h,w])
@@ -265,7 +251,7 @@ def main():
       coco=COCO(annFile)
       args.img_path='../../dataset/filter_tamper'
       MASK_DIR='../../dataset/casia1_mask'
-      data_file='test_filter_single.txt'
+      data_file='test_filter_onlycar.txt'
     elif args.dataset=='casia':
       args.img_path='../../dataset/CASIA1'
       data_file='test_all_1.txt'
@@ -285,33 +271,42 @@ def main():
     elif args.dataset=='COVERAGE':
       args.img_path='../../dataset/COVERAGE'
       data_file='cover_single_seg.txt'      
-    elif args.dataset=='single_img': 
-      data_file=None
+    # Prepare image.
+    #img = tf.image.decode_jpeg(tf.read_file(args.img_path), channels=3)
+    
+    # Extract mean.   
     img=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 3))
     seg_mask=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 1))
 
     image = tf.cast(img,tf.float32) - IMG_MEAN 
+    # Create network.
 
-    if args.vis_gan:
+
+    if vis_gan:
       tar_img=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 3))
       target_image =tf.cast(tar_img,tf.float32) - IMG_MEAN 
       seg_mask = tf.cast(seg_mask,tf.float32)
       image_cp = tf.multiply(tf.expand_dims(image, dim=0), tf.cast(tf.expand_dims(seg_mask, dim=0),tf.float32)) + tf.multiply(tf.expand_dims(target_image, dim=0), (1-tf.cast(tf.expand_dims(seg_mask, dim=0),tf.float32)))
       with tf.variable_scope("generator") as scope:
-          #g_output, ge_loss=generator(image_batch,gt_image_batch,label_batch,args.is_training)
-          g_output,_, _ =generator(tf.expand_dims(image, dim=0),tf.expand_dims(seg_mask, dim=0),tf.expand_dims(target_image, dim=0),tf.expand_dims(seg_mask, dim=0),False)
+
+          g_output,_, _ =generator(tf.expand_dims(image, dim=0),tf.expand_dims(seg_mask, dim=0),tf.expand_dims(image, dim=0),tf.expand_dims(seg_mask, dim=0),False)
+
+
 
     with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE) as scope:
       DeepNet=DeepLabLFOVModel(None) 
-      f_net, f_edgenet = DeepNet._create_network(tf.expand_dims(image, dim=0), 1.0, num_classes=args.num_classes, use_fuse=True)
+
+      f_net, f_edgenet, f_segnet = DeepNet._create_network(tf.expand_dims(image, dim=0), 1.0, num_classes=args.num_classes, use_fuse=True)
+      #f_net = DeepNet._create_network(g_output, 1.0, num_classes=args.num_classes)
       # Predictions.
       f_output = f_net
       f_edge_output = f_edgenet
-      
+      f_seg_output = f_segnet
+
     # Which variables to load.
     #pdb.set_trace()
     restore_var_2 = [v for v in tf.global_variables() if ('discriminator' in v.name)]
-    if args.vis_gan:
+    if vis_gan:
       restore_var_2 = [v for v in tf.global_variables() if ('generator' in v.name) or ('discriminator' in v.name)]
 
     # Predictions.
@@ -327,7 +322,11 @@ def main():
     raw_output_up = tf.argmax(raw_output_up, dimension=3)
     edge_pred = tf.expand_dims(raw_output_up, dim=3)
 
-
+    raw_output = f_seg_output
+    raw_output_up = tf.image.resize_bilinear(raw_output, tf.shape(img)[0:2,])
+    seg_pred_score=tf.nn.softmax(raw_output_up)
+    raw_output_up = tf.argmax(raw_output_up, dimension=3)
+    seg_pred = tf.expand_dims(raw_output_up, dim=3)
 
     # Set up TF session and initialize variables. 
     config = tf.ConfigProto()
@@ -340,6 +339,8 @@ def main():
     # Load weights.
     loader = tf.train.Saver(var_list=restore_var_2)
     load(loader, sess, args.model_weights)
+
+
 
     score = []
     label = []
@@ -354,13 +355,12 @@ def main():
     if data_file:
       f=open(os.path.join(args.img_path,data_file))
     else:
-      #f=glob.glob('/vulcan/scratch/koutilya/core3d_data/new_RGB_data/RGB_real_corrupted_with_building_masks/input_image_*')
-      #f=glob.glob('/vulcan/scratch/venkai/CORE3D/superres/Data/yaser/input/Faceforensics_c23_2k/*.png')
-      f=glob.glob('/vulcan/scratch/venkai/CORE3D/superres/Data/yaser/results_SR_x2_rgb_L2/Faceforensics_c23_2k/*.png')
-      #f=[args.single_img]
+      f=[args.single_img]
+
     if True:
       for line in f:
           imgname=line.split(' ')[0].strip()
+          # Perform inference.
           
           if args.dataset=='coco':
               if os.path.isfile(os.path.join(args.img_path,imgname)):
@@ -370,65 +370,55 @@ def main():
                   anns = coco.loadAnns(annIds)
                   mask_data=cv2.resize(np.array(coco.annToMask(anns[0])),(image_data.shape[1], image_data.shape[0]))
               else:
+                  continue
                   image_data=cv2.imread(os.path.join(MASK_DIR,imgname))
-                  #pdb.set_trace()
                   mask_data=np.zeros((image_data.shape[0],image_data.shape[1]))
-          elif args.dataset=='casia':
-              mask_dir='../../dataset/casia1_mask'
-              image_data=cv2.imread(os.path.join(args.img_path,imgname))
-              mask=cv2.imread(os.path.join(mask_dir,os.path.splitext(imgname)[0]+'.jpg'),cv2.IMREAD_UNCHANGED)
-              mask_data = (cv2.resize(mask, (IMG_SIZE,IMG_SIZE))>40).astype(np.uint8)
+
+          elif args.dataset=='NIST':
               #pdb.set_trace()
-          elif args.dataset=='dvmm':
               image_data=cv2.imread(os.path.join(args.img_path,imgname))
-              msk_path = os.path.join(args.img_path,line.split(' ')[1])
-              mask_data = (cv2.imread(msk_path,cv2.IMREAD_UNCHANGED)[:,:,2]<100).astype(np.uint8)
+              mask_data=np.logical_not(cv2.resize(cv2.imread(os.path.join(args.img_path,line.strip().split(' ')[1]),cv2.IMREAD_UNCHANGED), (IMG_SIZE,IMG_SIZE))).astype(np.uint8)
           elif args.dataset=='DSO':
 
               mask_dir='../../dataset/tifs-database/DSO-1-Fake-Images-Masks'
               image_data=cv2.imread(os.path.join(args.img_path,imgname))
               mask_data=np.logical_not(cv2.imread(os.path.join(mask_dir,imgname))).astype(np.uint8)
               mask_data = cv2.cvtColor(mask_data, cv2.COLOR_BGR2GRAY)
-          elif args.dataset=='tree':
-              mask_dir='/vulcan/scratch/koutilya/core3d_data/new_RGB_data/RGB_real_corrupted_with_building_masks'
-              image_data=cv2.imread(imgname)
-              img_id=os.path.splitext(imgname)[0].split('_')[-2]+'_'+os.path.splitext(imgname)[0].split('_')[-1]
-              mask_data=(cv2.resize(cv2.imread(os.path.join(mask_dir,'tree_mask_'+img_id+'.jpg')), (IMG_SIZE,IMG_SIZE))>0).astype(np.uint8)
-              mask_data = cv2.cvtColor(mask_data, cv2.COLOR_BGR2GRAY) 
           elif args.dataset=='classification':
 
               image_data=cv2.imread(imgname)
               mask_data = int(line.split(' ')[1])
+          elif args.dataset=='no_mask':
+
+              image_data=cv2.imread(imgname)
+
+              mask_data = np.zeros((IMG_SIZE,IMG_SIZE))
           elif args.dataset=='single_img':
 
               image_data=cv2.imread(imgname)
               mask_data = np.zeros((IMG_SIZE,IMG_SIZE))
           else:
               image_data=cv2.imread(os.path.join(args.img_path,imgname))
-              mask_data = np.zeros((IMG_SIZE,IMG_SIZE))
+              mask=(cv2.imread(os.path.join(args.img_path,line.strip().split(' ')[1]),cv2.IMREAD_UNCHANGED)>128).astype(np.uint8)
+              mask_data = cv2.resize(mask, (IMG_SIZE,IMG_SIZE))
+            
 
-          if add_jpeg:
-            # jpeg
-            cv2.imwrite('b.jpg',image_data,[cv2.IMWRITE_JPEG_QUALITY, 70])
-            image_data=cv2.imread('b.jpg')
-          elif add_scale:
-            image_data=cv2.resize(image_data,None,fx=0.7,fy=0.7)
           im_h,im_w,_ = image_data.shape
           gt_mask=cv2.resize(mask_data,(IMG_SIZE,IMG_SIZE))
-          #gt_mask =np.zeros((IMG_SIZE,IMG_SIZE))
           image_data=cv2.resize(image_data,(IMG_SIZE,IMG_SIZE))
 
-          if args.vis and args.vis_gan:
+          if vis and vis_gan:
             if not os.path.exists(args.save_dir):
               os.makedirs(args.save_dir)
             tar_image_data=cv2.imread(tar_img_name)
             tar_image_data=cv2.resize(tar_image_data,(IMG_SIZE,IMG_SIZE))
-            
-            preds,pred_scores, edge_pred_scores, g_output_im,cp_im= sess.run([pred,pred_score,edge_pred_score,g_output,image_cp],{img:image_data.astype(np.uint8),tar_img:tar_image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
+            #tar_image_data = image_data
+            preds,pred_scores, edge_pred_scores,seg_pred_scores, g_output_im,cp_im= sess.run([pred,pred_score,edge_pred_score,seg_pred_score,g_output,image_cp],{img:image_data.astype(np.uint8),tar_img:tar_image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
 
             if not os.path.exists(args.save_dir +'/'+ os.path.splitext(os.path.basename(imgname))[0]+'_gan.png'):
+              cv2.imwrite(args.save_dir +'/'+ os.path.basename(imgname),(g_output_im[0]+IMG_MEAN).astype(np.uint8))
 
-              if True:
+              if False:
                 fig=plt.figure()
                 plt.subplot(141)
                 plt.imshow(tar_image_data[:,:,::-1].astype(np.uint8))
@@ -442,78 +432,56 @@ def main():
                 plt.subplot(144)
                 plt.imshow((g_output_im[0]+IMG_MEAN)[:,:,::-1].astype(np.uint8))
                 plt.axis('off')
-                fig.savefig(args.save_dir +'/'+ os.path.splitext(os.path.basename(imgname))[0]+'_gan.png',bbox_inches='tight')
+                fig.savefig(args.save_dir +'/'+ os.path.splitext(os.path.basename(imgname))[0]+'_gan.jpg',bbox_inches='tight')
                 plt.close(fig)  
-            #seg_msk = decode_labels(seg_preds, num_classes=args.num_classes)
-          else:
-            preds,pred_scores, edge_pred_scores = sess.run([pred,pred_score,edge_pred_score],{img:image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
 
-          if not os.path.exists(args.save_dir):
-              os.makedirs(args.save_dir)
+          else:
+            preds,pred_scores, edge_pred_scores,seg_pred_scores = sess.run([pred,pred_score,edge_pred_score,seg_pred_score],{img:image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
+
+          if not os.path.exists(args.save_dir+'/'+imgname.split('/')[-2]):
+              os.makedirs(args.save_dir+'/'+imgname.split('/')[-2])
+
 
           pred_mask = pred_scores[0,:,:,1]
           edge_pred_mask = edge_pred_scores[0,:,:,1]
+          seg_pred_mask = seg_pred_scores[0,:,:,0]
+          if vis and not vis_gan:
+
+            image_data = cv2.resize(image_data,(im_w,im_h))
+            #im_seg=(pred_mask>th).astype(np.uint8)
+            im_seg= cv2.resize(pred_mask,(im_w,im_h))
+            ms_st = time.time()
+            #im_seg1=cv2.morphologyEx(im_seg, cv2.MORPH_CLOSE, kernel)
+            #im_seg1 = remove_isolated_pixels(im_seg1)
+            #edge_seg = (edge_pred_mask>th).astype(np.uint8)
+            #seg_seg = (seg_pred_mask>th).astype(np.uint8)
+            edge_seg= cv2.resize(edge_pred_mask,(im_w,im_h))
+            seg_seg =  cv2.resize(seg_pred_mask,(im_w,im_h))
+            gt_mask1 = cv2.resize(gt_mask,(im_w,im_h))
+            im_seg4 = im_seg
+
+
+            fig=plt.figure()
+            plt.subplot(151)
+            plt.imshow(image_data[:,:,::-1].astype(np.uint8))
+            plt.axis('off')
+            plt.subplot(152)
+            plt.imshow(gt_mask1,cmap='gray')
             
+            plt.axis('off')
+            plt.subplot(153)
+            plt.imshow(edge_seg,cmap='gray')
+            plt.axis('off')
+            plt.subplot(154)
+            plt.imshow(seg_seg,cmap='gray')
+            plt.axis('off')
+            plt.subplot(155)
+            plt.imshow(im_seg4,cmap='gray')
+            plt.axis('off')
+            fig.savefig(os.path.join(args.save_dir ,imgname.split('/')[-2], os.path.splitext(os.path.basename(imgname))[0]+'_cmp.jpg'),bbox_inches='tight')
+            plt.close(fig)
+            print('The output file has been saved to {}'.format(args.save_dir + 'mask.png'))
 
-          if args.F1:
-            f_var = np.zeros(50)
-            mcc_var = np.zeros(50)
-            for var in range(50):
-
-              im_seg=(pred_mask>0.01*var).astype(np.uint8)
-              im_seg=cv2.morphologyEx(im_seg, cv2.MORPH_CLOSE, kernel)
-
-              im_seg = remove_isolated_pixels(im_seg)
-              im_seg= ndimage.binary_erosion(im_seg, structure=np.ones((3,3))).astype(im_seg.dtype)
-              im_seg=cv2.morphologyEx(im_seg, cv2.MORPH_CLOSE, kernel, iterations=2)
-              tp_var=np.sum(gt_mask*im_seg)
-              fp_var=np.sum(im_seg)-tp_var
-              fn_var=np.sum(gt_mask)-tp_var
-              tn_var=gt_mask.shape[0]*gt_mask.shape[1]-tp_var-fp_var-fn_var
-
-              f_var[var] = 2*tp_var/(2*tp_var+fp_var+fn_var)
-              mcc_var[var] = (tp_var * tn_var - fp_var * fn_var)/(1e-9+np.sqrt((tp_var+fp_var)*(tp_var+fn_var))*np.sqrt((tn_var+fp_var)*(tn_var+fn_var)))
-
-            f1 +=[f_var.max()]
-            mcc += [mcc_var.max()]
-            if args.vis:
-              cv2.imwrite(args.save_dir+'/'+os.path.splitext(os.path.basename(imgname))[0]+'.png', pred_mask*255)
-              image_data = cv2.resize(image_data,(im_w,im_h))
-              ind_var = f_var.argmax()
-              im_seg=(pred_mask>0.01*ind_var).astype(np.uint8)
-              im_seg1=cv2.morphologyEx(im_seg, cv2.MORPH_CLOSE, kernel)
-
-              im_seg1 = remove_isolated_pixels(im_seg1)
-              edge_seg = (edge_pred_mask>0.01*ind_var).astype(np.uint8)
-
-              im_seg2= ndimage.binary_erosion(im_seg1, structure=np.ones((3,3))).astype(im_seg.dtype)
-              im_seg4=cv2.morphologyEx(im_seg2, cv2.MORPH_CLOSE, kernel, iterations=2)
-
-              fig=plt.figure()
-              plt.subplot(141)
-              plt.imshow(image_data[:,:,::-1].astype(np.uint8))
-              plt.axis('off')
-              plt.subplot(142)
-              plt.imshow(im_seg4,cmap='gray')
-              plt.axis('off')
-              plt.subplot(143)
-              plt.imshow(edge_seg,cmap='gray')
-              plt.axis('off')
-              plt.subplot(144)
-              plt.imshow(gt_mask,cmap='gray')
-              plt.axis('off')
-              fig.savefig(args.save_dir +'/'+ os.path.splitext(os.path.basename(imgname))[0]+'_cmp.png',bbox_inches='tight')
-              plt.close(fig)
-              print('The output file has been saved to {}'.format(args.save_dir + 'mask.png'))
-
-    if args.AUC:
-        fpr, tpr, thresholds = metrics.roc_curve(label, score, pos_label=1)
-        print('AUC: %f' % metrics.auc(fpr, tpr))
-
-    if args.F1:
-
-        print('F1 score: %f' % np.array(f1).mean())
-        print('MCC score: %f' % np.array(mcc).mean())
 
     
 if __name__ == '__main__':

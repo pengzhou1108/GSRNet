@@ -311,93 +311,6 @@ def create_generator(image, generator_outputs_channels, is_training=True):
 
   return layers[-1]
 
-def create_autoencoder(image, auto_channels, is_training=False):
-  """ Generator from image to a segment map"""
-  # Build inputs
-  layers = []
-
-  # encoder_1: [batch, 256, 256, in_channels] => [batch, 128, 128, ngf]
-  with tf.variable_scope("encoder_auto_1"):
-    output = conv(image, 64, stride=2)
-    layers.append(output)
-
-    layer_specs = [
-      # encoder_2: [batch, 128, 128, ngf] => [batch, 64, 64, ngf * 2]
-      64 * 2,
-      # encoder_3: [batch, 64, 64, ngf * 2] => [batch, 32, 32, ngf * 4]
-      64 * 4,
-      # encoder_4: [batch, 32, 32, ngf * 4] => [batch, 16, 16, ngf * 8]
-      64 * 8,
-      # encoder_5: [batch, 16, 16, ngf * 8] => [batch, 8, 8, ngf * 8]
-      64 * 8,
-      # encoder_6: [batch, 8, 8, ngf * 8] => [batch, 4, 4, ngf * 8]
-      64 * 8,
-      # encoder_7: [batch, 4, 4, ngf * 8] => [batch, 2, 2, ngf * 8]
-      64 * 8,
-      # encoder_8: [batch, 2, 2, ngf * 8] => [batch, 1, 1, ngf * 8]
-      64 * 8,
-  ]
-
-  for out_channels in layer_specs:
-    with tf.variable_scope("encoder_auto_%d" % (len(layers) + 1)):
-      rectified = lrelu(layers[-1], 0.2)
-      # [batch, in_height, in_width, in_channels]
-      # => [batch, in_height/2, in_width/2, out_channels]
-      convolved = conv(rectified, out_channels, stride=2)
-      output = convolved
-      #output = batchnorm(convolved, is_training)
-      layers.append(output)
-
-  layer_specs = [
-    # decoder_8: [batch, 1, 1, ngf * 8] => [batch, 2, 2, ngf * 8 * 2]
-    (64 * 8, 0.0),
-    # decoder_7: [batch, 2, 2, ngf * 8 * 2] => [batch, 4, 4, ngf * 8 * 2]
-    (64 * 8, 0.0),
-    # decoder_6: [batch, 4, 4, ngf * 8 * 2] => [batch, 8, 8, ngf * 8 * 2]
-    (64 * 8, 0.0),
-    # decoder_5: [batch, 8, 8, ngf * 8 * 2] => [batch, 16, 16, ngf * 8 * 2]
-    (64 * 8, 0.0),
-    # decoder_4: [batch, 16, 16, ngf * 8 * 2] => [batch, 32, 32, ngf * 4 * 2]
-    (64 * 4, 0.0),
-    # decoder_3: [batch, 32, 32, ngf * 4 * 2] => [batch, 64, 64, ngf * 2 * 2]
-    (64 * 2, 0.0),
-    # decoder_2: [batch, 64, 64, ngf * 2 * 2] => [batch, 128, 128, ngf * 2]
-    (64, 0.0),
-  ]
-
-
-  num_encoder_layers = len(layers)
-  for decoder_layer, (out_channels, dropout) in enumerate(layer_specs):
-    skip_layer = num_encoder_layers - decoder_layer - 1
-    with tf.variable_scope("decoder_auto_%d" % (skip_layer + 1)):
-      if decoder_layer == 0:
-        # first decoder layer doesn't have skip connections
-        # since it is directly connected to the skip_layer
-        input = layers[-1]
-      else:
-        input = tf.concat([layers[-1], layers[skip_layer]], axis=3)
-
-      rectified = tf.nn.relu(input)
-      # [batch, in_height, in_width, in_channels]
-      # => [batch, in_height*2, in_width*2, out_channels]
-      output = deconv(rectified, out_channels)
-
-      if dropout > 0.0 and is_training:
-        output = tf.nn.dropout(output, keep_prob=1 - dropout)
-
-      layers.append(output)
-
-  # decoder_1: [batch, 128, 128, ngf * 2] => [batch, 256, 256,
-  # generator_outputs_channels]
-  with tf.variable_scope("decoder_auto_1"):
-    input = tf.concat([layers[-1], layers[0]], axis=3)
-    rectified = tf.nn.relu(input)
-    output = deconv(rectified, auto_channels)
-    output = tf.tanh(output)
-    # output = tf.sigmoid(output)
-    layers.append(output)
-
-  return layers[-1]
 
 def create_discriminator(image,args, is_training=True):
   """ Generator from image to a segment map"""
@@ -443,17 +356,6 @@ def create_discriminator(image,args, is_training=True):
   return layers[-1]
 
 
-def autoencoder(target_batch, is_training=False):
-  with tf.variable_scope("autoencoder") as scope:
-    h,w = target_batch.get_shape()[1:3]
-    target_batch = tf.image.resize_bilinear(target_batch, [256, 256])
-    out_channels = int(target_batch.get_shape()[-1])
-    outputs = create_autoencoder(target_batch, out_channels, is_training)
-    outputs = (outputs/2+0.5)*255-IMG_MEAN
-  with tf.name_scope('autoencoder_loss') as scope:
-    auto_loss = tf.nn.l2_loss(outputs-target_batch)
-    outputs = tf.image.resize_bilinear(outputs, [h, w])
-  return outputs, auto_loss
 def make_kernel(a):
   """Transform a 2D array into a convolution kernel"""
   a = a.reshape(list(a.shape) + [1,1])
@@ -473,14 +375,13 @@ def generator(gt_image, gt_mask, target_im, target_mask, is_training=False):
     gt_mask = joint_input[:,:,:,3:4]
     target_im = joint_input[:,:,:,4:7]
     image = tf.multiply(gt_image, tf.cast(gt_mask,tf.float32)) + tf.multiply(target_im, (1-tf.cast(gt_mask,tf.float32)))
-    #out_channels = int(seg_mask.get_shape()[-1] + edge_mask.get_shape()[-1])
+
     out_channels = int(gt_image.get_shape()[-1])
-    #outputs = create_generator(tf.concat([image, tf.cast(gt_mask,tf.float32), target_im], axis=-1), out_channels, is_training)
+
     outputs = create_generator(tf.concat([image, tf.cast(gt_mask,tf.float32)], axis=-1), out_channels, is_training)
-    #outputs = create_generator(image, out_channels, is_training)
-    #pdb.set_trace()
+
     seg_outputs = outputs[:,:,:,0:3]
-    #seg_outputs = image
+
     seg_outputs = (seg_outputs/2+0.5)*255-IMG_MEAN
 
   with tf.name_scope("generator_loss"):
@@ -518,7 +419,7 @@ def main():
     args = get_arguments()
     if args.is_training:
       print('is training')
-    #pdb.set_trace()
+
     h, w = map(int, args.input_size.split(','))
     input_size = (h, w)
     tf.set_random_seed(args.random_seed)
@@ -736,16 +637,7 @@ def main():
         t_edge_gt = tf.cast(tf.gather(t_edge_gt_raw, indices), tf.int32)
         t_edge_prediction = tf.gather(raw_prediction, indices)                                                      
                       
-    # Pixel-wise softmax loss.
-    if args.use_floss:
-      #pdb.set_trace() 
-      print('Use focal loss')
-      sys.stdout.flush()
-      Dgt_loss = focal_loss(gt, gt_prediction)
-      Df_loss = focal_loss(f_gt, f_prediction)
-      Dt_loss = focal_loss(t_gt, t_prediction)
-      D_loss = Dgt_loss + Df_loss  + 2*Dt_loss #+ tf.add_n(D_l2_losses)      
-    elif args.use_refine:
+    if args.use_refine:
 
       Df_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=f_prediction, labels=f_gt))
       Df_refine_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=f_refine_prediction, labels=f_refine_gt))
@@ -758,7 +650,6 @@ def main():
 
       D_loss =  Df_loss  + Df_refine_loss  + Dgt_loss +  Df_edge_loss + Df_refine_edge_loss + Dgt_edge_loss + tf.add_n(D_l2_losses)
     elif args.use_fuse:
-      #pdb.set_trace()
       Df_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=f_prediction, labels=f_gt))
       Df_edge_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=f_edge_prediction, labels=f_edge_gt))
       Dgt_edge_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=tar_edge_prediction, labels=tar_edge_gt))
@@ -775,7 +666,6 @@ def main():
       Dt_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=t_prediction, labels=t_gt))
       if args.use_fuse:
         Dt_edge_loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(logits=t_edge_prediction, labels=t_edge_gt, weights=tf.gather([0.3, 0.7], t_edge_gt)))
-        #Dt_edge_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=t_edge_prediction, labels=t_edge_gt))
         D_loss = D_loss + Dt_loss + Dt_edge_loss
       else:
         D_loss = D_loss + Dt_loss
@@ -830,7 +720,7 @@ def main():
     #tamper pred
     if args.dloss_num>3:
       t_summary = tf.py_func(inv_preprocess, [t_input, args.save_num_images,IMG_MEAN], tf.uint8)
-    #t_labels_summary = tf.py_func(decode_labels, [tamper_label_batch, args.save_num_images, args.num_classes], tf.uint8)
+      #t_labels_summary = tf.py_func(decode_labels, [tamper_label_batch, args.save_num_images, args.num_classes], tf.uint8)
       raw_output_up = tf.image.resize_bilinear(t_output, tf.shape(target_batch)[1:3,])
       raw_output_up = tf.argmax(raw_output_up, dimension=3)
       t_pred = tf.expand_dims(raw_output_up, dim=3)
@@ -984,8 +874,6 @@ def main():
           print('step {:d} \t Dloss = {:.3f}, D1loss = {:.3f}, ({:.3f} sec/step)'.format(step, D_loss_value, D1_loss_value, duration))
           sys.stdout.flush()          
         
-        #print('step {:d} \t Gloss = {:.3f}, ({:.3f} sec/step)'.format(step, G_loss_value, duration))
-        #sys.stdout.flush()
     coord.request_stop()
     coord.join(threads)
     

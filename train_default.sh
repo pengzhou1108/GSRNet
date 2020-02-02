@@ -1,21 +1,5 @@
 #!/bin/bash
 
-##SBATCH --mem=32g
-##SBATCH --gres=gpu:p6000:1
-##SBATCH --time=36:00:00
-##SBATCH --qos=default
-##SBATCH --partition=dpart
-
-##SBATCH --mem=64g
-#SBATCH --gres=gpu:1
-#SBATCH --time=24:00:00
-##SBATCH --qos=default
-##SBATCH --partition=dpart
-#SBATCH --account=scavenger
-#SBATCH --partition=scavenger
-
-module add cuda/8.0.44 cudnn/v6.0
-module load Python3/3.4.2
 
 
 #GPU_ID=$1

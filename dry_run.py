@@ -83,6 +83,9 @@ def get_arguments():
                         help="Where to save predicted mask.")
     parser.add_argument("--dataset", type=str, default='coco',
                         help="Where to save predicted mask.")
+    parser.add_argument("--vis", type=bool,default=vis)
+    parser.add_argument("--vis_gan", type=bool,default=vis_gan)
+
     return parser.parse_args()
 
 def load(saver, sess, ckpt_path):
@@ -282,7 +285,7 @@ def main():
     # Create network.
 
 
-    if vis_gan:
+    if args.vis_gan:
       tar_img=tf.placeholder(dtype=tf.uint8, shape=(IMG_SIZE, IMG_SIZE, 3))
       target_image =tf.cast(tar_img,tf.float32) - IMG_MEAN 
       seg_mask = tf.cast(seg_mask,tf.float32)
@@ -306,7 +309,7 @@ def main():
     # Which variables to load.
     #pdb.set_trace()
     restore_var_2 = [v for v in tf.global_variables() if ('discriminator' in v.name)]
-    if vis_gan:
+    if args.vis_gan:
       restore_var_2 = [v for v in tf.global_variables() if ('generator' in v.name) or ('discriminator' in v.name)]
 
     # Predictions.
@@ -407,7 +410,7 @@ def main():
           gt_mask=cv2.resize(mask_data,(IMG_SIZE,IMG_SIZE))
           image_data=cv2.resize(image_data,(IMG_SIZE,IMG_SIZE))
 
-          if vis and vis_gan:
+          if args.vis and args.vis_gan:
             if not os.path.exists(args.save_dir):
               os.makedirs(args.save_dir)
             tar_image_data=cv2.imread(tar_img_name)
@@ -445,7 +448,7 @@ def main():
           pred_mask = pred_scores[0,:,:,1]
           edge_pred_mask = edge_pred_scores[0,:,:,1]
           seg_pred_mask = seg_pred_scores[0,:,:,0]
-          if vis and not vis_gan:
+          if args.vis and not args.vis_gan:
 
             image_data = cv2.resize(image_data,(im_w,im_h))
             #im_seg=(pred_mask>th).astype(np.uint8)

@@ -33,7 +33,7 @@ https://drive.google.com/open?id=1vIAFsftjmHg2J5lJgO92C1Xmyw539p_B
 for single image, use --dataset='single_img'
 
 2. save output image:
-python3 dry_run.py --model_weights='./snapshots/$FIXME' --dataset='$FIXME' --save-dir='./output/$FIXME/' --vis=True --F1=True
+python3 dry_run.py --model_weights='./snapshots/$FIXME' --dataset='$FIXME' --save-dir='./output/$FIXME/' --vis=True
 
 3. visualize generated images:
 python3 dry_run.py --model_weights='./snapshots/$FIXME' --dataset='$FIXME' --save-dir='./output/$FIXME/' --vis=True --vis_gan=True

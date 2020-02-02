@@ -11,7 +11,7 @@ pip install -r requirements.txt
 
 # Download ImageNet pre-trained model:
 
-Refer to```https://github.com/DrSleep/tensorflow-deeplab-lfov``` for more detail
+Refer to https://github.com/DrSleep/tensorflow-deeplab-lfov for more detail
 
 # Prepare tfrecords for dataset
 1. Change the arguments of ```dataset, train_dir, mask_dir, output_directory```, to corresponding directories.

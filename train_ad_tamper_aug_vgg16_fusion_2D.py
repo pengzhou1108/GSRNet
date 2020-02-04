@@ -454,7 +454,7 @@ def main():
     with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE) as scope:
       DeepNet=DeepLabLFOVModel(None) 
       if args.use_fuse:
-        f_net, f_edgenet = DeepNet._create_network(g_output, 0.5, num_classes=args.num_classes, use_fuse=True)
+        f_net, f_edgenet, _ = DeepNet._create_network(g_output, 0.5, num_classes=args.num_classes, use_fuse=True)
         # Predictions.
         f_output = f_net
         f_edge = f_edgenet
@@ -466,7 +466,7 @@ def main():
       if args.dloss_num>3:
         if args.use_fuse:
           t_input = tf.multiply(target_batch, tf.cast(target_label_batch,tf.float32)) + tf.multiply(gt_image_batch, (1-tf.cast(target_label_batch,tf.float32)))
-          t_net, t_edgenet = DeepNet._create_network(t_input, 0.5, num_classes=args.num_classes, use_fuse=True)
+          t_net, t_edgenet,_ = DeepNet._create_network(t_input, 0.5, num_classes=args.num_classes, use_fuse=True)
           t_output = t_net
           t_edge_output = t_edgenet
         else:
@@ -477,7 +477,7 @@ def main():
       #t_output = t_net
       if args.not_use_auto:
         if args.use_fuse:
-          tar_net,tar_edgenet = DeepNet._create_network(target_auto, 0.5, num_classes=args.num_classes, use_fuse=True)
+          tar_net,tar_edgenet, _ = DeepNet._create_network(target_auto, 0.5, num_classes=args.num_classes, use_fuse=True)
           tar_output = tar_net
           tar_edge_output = tar_edgenet
         else:
@@ -485,7 +485,7 @@ def main():
           tar_output = tar_net
       else:
         if args.use_fuse:
-          tar_net,tar_edgenet = DeepNet._create_network(target_batch, 0.5, num_classes=args.num_classes, use_fuse=True)
+          tar_net,tar_edgenet,_ = DeepNet._create_network(target_batch, 0.5, num_classes=args.num_classes, use_fuse=True)
           tar_output = tar_net
           tar_edge_output = tar_edgenet
         else:
@@ -501,7 +501,7 @@ def main():
         f_output_up = tf.expand_dims(tf.argmax(f_output_up, dimension=3), -1)
         f_refine = tf.multiply(target_batch,1-tf.cast(f_output_up, tf.float32)) + tf.multiply(target_gt_batch, tf.cast(f_output_up, tf.float32))
         if args.use_fuse:
-          f_net_refine, f_net_refine_edge = DeepNet._create_network(f_refine, 0.5, num_classes=args.num_classes, use_fuse=True)
+          f_net_refine, f_net_refine_edge,_ = DeepNet._create_network(f_refine, 0.5, num_classes=args.num_classes, use_fuse=True)
           f_refine_output = f_net_refine
           f_refine_edge_output = f_net_refine_edge
         else:

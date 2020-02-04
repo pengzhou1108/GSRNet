@@ -34,10 +34,6 @@ NUM_CLASSES = 2
 
 
 
-DATA_PATH='../../dataset/CASIA1'
-MASK_DIR='../../dataset/train2014'
-data_file='test_dvmm_split.txt'
-
 IMG_SIZE=300
 add_noise=False
 add_jpeg=False
@@ -69,15 +65,13 @@ def get_arguments():
       A list of parsed arguments.
     """
     parser = argparse.ArgumentParser(description="DeepLabLFOV Network Inference.")
-    parser.add_argument("--img_path", type=str, default=DATA_PATH,
+    parser.add_argument("--img_path", type=str, default=None,
                         help="Path to the RGB image file.")
     parser.add_argument("--model_weights", type=str,
                         help="Path to the file with model weights.")
-    parser.add_argument("--seg_weights", type=str,default='./snapshots/ad_wgan_auto_coco_pre/model.ckpt-34000',
-                        help="Path to the file with model weights.")
     parser.add_argument("--num-classes", type=int, default=NUM_CLASSES,
                         help="Number of classes to predict (including background).")
-    parser.add_argument("--save-dir", type=str, default=SAVE_DIR,
+    parser.add_argument("--save-dir", type=str, default='./output',
                         help="Where to save predicted mask.")
     parser.add_argument("--single_img", type=str, default='Sp_D_NNN_A_art0084_cha0033_0302.jpg',
                         help="Where to save predicted mask.")
@@ -233,12 +227,6 @@ def generator(gt_image, gt_mask, target_im, target_mask, is_training=False):
     seg_outputs = tf.image.resize_bilinear(seg_outputs, [h,w])
   return seg_outputs, gen_loss_seg_L1, gradient_loss 
 
-def normalized_cut(res):
-    sc = sklearn.cluster.SpectralClustering(n_clusters=2, n_jobs=-1,
-                                            affinity="precomputed")
-    out = sc.fit_predict(res.reshape((res.shape[0] * res.shape[1], -1)))
-    vis = out.reshape((res.shape[0], res.shape[1]))
-    return vis
 def main():
     """Create the model and start the evaluation process."""
     args = get_arguments()
@@ -254,13 +242,7 @@ def main():
       coco=COCO(annFile)
       args.img_path='../../dataset/filter_tamper'
       MASK_DIR='../../dataset/casia1_mask'
-      data_file='test_filter_onlycar.txt'
-    elif args.dataset=='casia':
-      args.img_path='../../dataset/CASIA1'
-      data_file='test_all_1.txt'
-    elif args.dataset=='NIST':
-      args.img_path='../../dataset/NC2016_Test0613'
-      data_file='NIST_test_seg_new_2.txt'
+      data_file='test_filter.txt'
 
     elif args.dataset=='dvmm':
       args.img_path='/vulcan/scratch/pengzhou/dataset/4cam_splc'
@@ -273,7 +255,10 @@ def main():
       data_file='test_dso.txt'
     elif args.dataset=='COVERAGE':
       args.img_path='../../dataset/COVERAGE'
-      data_file='cover_single_seg.txt'      
+      data_file='cover_single_seg.txt' 
+    else:
+      data_file = None
+
     # Prepare image.
     #img = tf.image.decode_jpeg(tf.read_file(args.img_path), channels=3)
     
@@ -345,15 +330,6 @@ def main():
 
 
 
-    score = []
-    label = []
-    f1=[]
-    tp=[]
-    fp=[]
-    fn=[]
-    mcc = []
-    acc1=0
-    acc2=0
     kernel = np.ones((15,15),np.uint8)
     if data_file:
       f=open(os.path.join(args.img_path,data_file))
@@ -377,10 +353,6 @@ def main():
                   image_data=cv2.imread(os.path.join(MASK_DIR,imgname))
                   mask_data=np.zeros((image_data.shape[0],image_data.shape[1]))
 
-          elif args.dataset=='NIST':
-              #pdb.set_trace()
-              image_data=cv2.imread(os.path.join(args.img_path,imgname))
-              mask_data=np.logical_not(cv2.resize(cv2.imread(os.path.join(args.img_path,line.strip().split(' ')[1]),cv2.IMREAD_UNCHANGED), (IMG_SIZE,IMG_SIZE))).astype(np.uint8)
           elif args.dataset=='DSO':
 
               mask_dir='../../dataset/tifs-database/DSO-1-Fake-Images-Masks'
@@ -441,8 +413,8 @@ def main():
           else:
             preds,pred_scores, edge_pred_scores,seg_pred_scores = sess.run([pred,pred_score,edge_pred_score,seg_pred_score],{img:image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
 
-          if not os.path.exists(args.save_dir+'/'+imgname.split('/')[-2]):
-              os.makedirs(args.save_dir+'/'+imgname.split('/')[-2])
+          if not os.path.exists(args.save_dir):
+              os.makedirs(args.save_dir)
 
 
           pred_mask = pred_scores[0,:,:,1]
@@ -481,9 +453,9 @@ def main():
             plt.subplot(155)
             plt.imshow(im_seg4,cmap='gray')
             plt.axis('off')
-            fig.savefig(os.path.join(args.save_dir ,imgname.split('/')[-2], os.path.splitext(os.path.basename(imgname))[0]+'_cmp.jpg'),bbox_inches='tight')
+            fig.savefig(os.path.join(args.save_dir , os.path.splitext(os.path.basename(imgname))[0]+'_cmp.jpg'),bbox_inches='tight')
             plt.close(fig)
-            print('The output file has been saved to {}'.format(args.save_dir + 'mask.png'))
+            print('The output file has been saved to {}'.format(args.save_dir))
 
 
     

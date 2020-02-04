@@ -13,13 +13,15 @@ pip install -r requirements.txt
 
 Refer to https://github.com/DrSleep/tensorflow-deeplab-lfov for more detail
 
+Download ```model.ckpt-pretrained```, ```net_skeleton.ckpt``` and put it in the 'ckpt' folder
+
 # Prepare tfrecords for dataset
 1. Change the arguments of ```dataset, train_dir, mask_dir, output_directory```, to corresponding directories.
 
 2. Run ```python3 im_pre_casia_pair.py```
 
 3. The tfrecords for COCO and CASIA are provided in
-https://drive.google.com/open?id=1vIAFsftjmHg2J5lJgO92C1Xmyw539p_B 
+https://drive.google.com/drive/folders/1YY4UM1PBTbBWMyjx350ubp5udGZG66K1?usp=sharing
 
 
 # Train the model:

@@ -1,5 +1,5 @@
 # GSRNet
-Code for the GSRNet 
+Code for the [GSRNet](https://arxiv.org/abs/1811.09729) (AAAI 2020)
 
 # Environment
 tensorflow 1.4.0, python3.4, cuda 8.0.44 cudnn 6.0

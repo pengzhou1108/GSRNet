@@ -18,10 +18,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from sklearn import metrics
-from utils import conv,batchnorm,lrelu,deconv,gaussian_noise_layer, CRF
-import sklearn.cluster
-from sklearn.feature_extraction import image
+from utils import conv,batchnorm,lrelu,deconv,gaussian_noise_layer
 from deeplab_resnet import ImageReader, decode_labels, inv_preprocess,inv_preprocess_float, prepare_label
 from DeepModel import DeepLabLFOVModel
 from scipy import ndimage

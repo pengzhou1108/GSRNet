@@ -8,11 +8,10 @@ which contains approximately 10000 images for training and 1500 images for valid
 from __future__ import print_function
 
 import argparse
-from datetime import datetime
 import os
 import sys
 import time
-from utils import prefetch_input_data, process_image, process_image_pair, parse_tf_example,parse_tf_example_pair, conv,batchnorm_old,lrelu,deconv,focal_loss
+from utils import prefetch_input_data, process_image, process_image_pair, parse_tf_example,parse_tf_example_pair, conv,batchnorm_old,lrelu,deconv
 import cv2
 import tensorflow as tf
 import numpy as np

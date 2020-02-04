@@ -313,13 +313,7 @@ def process_image(encoded_image,
   image = tf.image.convert_image_dtype(image, dtype=tf.float32)
   #image = tf.cast(image, dtype=tf.float32)
   seg_mask = tf.image.convert_image_dtype(seg_mask, dtype=tf.float32)
-  #seg_mask = tf.cast(seg_mask, dtype=tf.float32)
-  #edge_mask = tf.cast(edge_mask, dtype=tf.float32)
 
-  #image_summary("original_image", image[:,:,::-1])
-  #image_summary("original_image", image[:,:,0:3])
-  #image_summary("original_seg_mask", seg_mask)
-  #image_summary("original_edge_mask", edge_mask)
 
   # Resize image.
   assert (resize_height > 0) == (resize_width > 0)
@@ -330,21 +324,14 @@ def process_image(encoded_image,
   seg_mask = tf.image.resize_images(seg_mask,
                                 size=[resize_height, resize_width],
                                 method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-  #edge_mask = tf.image.resize_images(edge_mask,
-                                #size=[resize_height, resize_width],
-                                #method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+
 
   # Crop to final dimensions.
   #joint_input = tf.concat([image, seg_mask, edge_mask], axis=-1)
 
   
   if is_training:
-    #if random_scale:
-        #image, seg_mask = image_scaling(image, seg_mask)
 
-    # Randomly mirror the images and labels.
-    #if random_mirror:
-        #image, seg_mask = image_mirroring(image, seg_mask)  
     joint_input = tf.concat([image, seg_mask], axis=-1)  
     #joint_input = tf.random_crop(joint_input, [height, width, 5])
     joint_input = tf.random_crop(joint_input, [resize_height, resize_height, 4])
@@ -379,21 +366,12 @@ def process_image(encoded_image,
     tamper_region=distort[:,:,:3]
     seg_mask1=distort[:,:,3:4]
     image_m=distort[:,:,4:]
-    #tamper_region, seg_mask = image_scaling(tamper_region, seg_mask)
-    #tamper_scale=tf.concat([tamper_region, seg_mask], axis=-1)
-    #tamper_scale = tf.image.resize_image_with_crop_or_pad(tamper_scale, resize_height, resize_height)
-    #tamper_region=tamper_scale[:,:,:3]
-    #seg_mask = tamper_scale[:,:,3:4]
-    #tamper_region, seg_mask, image_m = image_mirroring(tamper_region,seg_mask,image)
+
     tamper_region= tf.multiply(tamper_region,tf.cast(seg_mask1,tf.float32))
     image_distort = tf.multiply(image,1-tf.cast(seg_mask1,tf.float32)) + tamper_region  
     if not is_authentic:
       image_summary("final_tamper", image_distort[:,:,::-1])
-      #edge_mask = joint_input[:,:,4:]
-      
-      # print(image)
-      # print(seg_mask)
-      # print(edge_mask)
+
       image_summary("final_image", image[:,:,::-1])
       #image_summary("final_image", image[:,:,::-1])
       image_summary("final_seg_mask", seg_mask)
@@ -408,11 +386,7 @@ def process_image(encoded_image,
       return image, seg_mask, image_distort      
     else:
       image_summary("final_tamper", image_distort[:,:,::-1])
-      #edge_mask = joint_input[:,:,4:]
-      
-      # print(image)
-      # print(seg_mask)
-      # print(edge_mask)
+
       image_summary("final_image", image[:,:,::-1])
       #image_summary("final_image", image[:,:,::-1])
       image_summary("final_seg_mask", seg_mask)
@@ -429,11 +403,7 @@ def process_image(encoded_image,
     tamper_region= tf.multiply(tamper_region,tf.cast(seg_mask,tf.float32))
     image_distort = tf.multiply(image,1-tf.cast(seg_mask,tf.float32)) + tamper_region
     image_summary("final_tamper", image_distort[:,:,::-1])
-    #edge_mask = joint_input[:,:,4:]
-    
-    # print(image)
-    # print(seg_mask)
-    # print(edge_mask)
+
     image_summary("final_image", image[:,:,::-1])
     #image_summary("final_image", image[:,:,::-1])
     image_summary("final_seg_mask", seg_mask)
@@ -508,13 +478,7 @@ def process_image_unet(encoded_image,
   image = tf.image.convert_image_dtype(image, dtype=tf.float32)
   #image = tf.cast(image, dtype=tf.float32)
   seg_mask = tf.image.convert_image_dtype(seg_mask, dtype=tf.float32)
-  #seg_mask = tf.cast(seg_mask, dtype=tf.float32)
-  #edge_mask = tf.cast(edge_mask, dtype=tf.float32)
 
-  #image_summary("original_image", image[:,:,::-1])
-  #image_summary("original_image", image[:,:,0:3])
-  #image_summary("original_seg_mask", seg_mask)
-  #image_summary("original_edge_mask", edge_mask)
 
   # Resize image.
   assert (resize_height > 0) == (resize_width > 0)
@@ -525,21 +489,13 @@ def process_image_unet(encoded_image,
   seg_mask = tf.image.resize_images(seg_mask,
                                 size=[resize_height, resize_width],
                                 method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-  #edge_mask = tf.image.resize_images(edge_mask,
-                                #size=[resize_height, resize_width],
-                                #method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
   # Crop to final dimensions.
   #joint_input = tf.concat([image, seg_mask, edge_mask], axis=-1)
 
   
   if is_training:
-    #if random_scale:
-        #image, seg_mask = image_scaling(image, seg_mask)
 
-    # Randomly mirror the images and labels.
-    #if random_mirror:
-        #image, seg_mask = image_mirroring(image, seg_mask)  
     joint_input = tf.concat([image, seg_mask], axis=-1)  
     #joint_input = tf.random_crop(joint_input, [height, width, 5])
     joint_input = tf.random_crop(joint_input, [resize_height, resize_height, 4])
@@ -563,8 +519,7 @@ def process_image_unet(encoded_image,
   image_summary("hue", tamper_region[:,:,::-1])
   tamper_region = tf.image.random_contrast(tamper_region, lower=0.5, upper=1.5)
   image_summary("contrast", tamper_region[:,:,::-1])
-  #tamper_region = gaussian_noise_layer(tamper_region, 0.1)
-  #image_summary("add noise", tamper_region[:,:,::-1])
+
   tamper_region = tf.clip_by_value(tamper_region, 0.0, 1.0)
 
   if random_mirror:
@@ -574,50 +529,25 @@ def process_image_unet(encoded_image,
     tamper_region=distort[:,:,:3]
     seg_mask1=distort[:,:,3:4]
     image_m=distort[:,:,4:]
-    #tamper_region, seg_mask = image_scaling(tamper_region, seg_mask)
-    #tamper_scale=tf.concat([tamper_region, seg_mask], axis=-1)
-    #tamper_scale = tf.image.resize_image_with_crop_or_pad(tamper_scale, resize_height, resize_height)
-    #tamper_region=tamper_scale[:,:,:3]
-    #seg_mask = tamper_scale[:,:,3:4]
-    #tamper_region, seg_mask, image_m = image_mirroring(tamper_region,seg_mask,image)
     tamper_region= tf.multiply(tamper_region,tf.cast(seg_mask1,tf.float32))
     image_distort = tf.multiply(image,1-tf.cast(seg_mask1,tf.float32)) + tamper_region  
     if not is_authentic:
       image_summary("final_tamper", image_distort[:,:,::-1])
-      #edge_mask = joint_input[:,:,4:]
-      
-      # print(image)
-      # print(seg_mask)
-      # print(edge_mask)
+
       image_summary("final_image", image[:,:,::-1])
       #image_summary("final_image", image[:,:,::-1])
       image_summary("final_seg_mask", seg_mask)
-      #image_summary("final_edge_mask", edge_mask)
 
-      # Rescale to image-mean instead of [0, 1]
-      #image_distort = image_distort*255-image_mean
-      #image = image*255-image_mean
-      #image = image - image_mean
-      #return image, seg_mask, edge_mask
       seg_mask = tf.maximum(seg_mask, seg_mask1)
       return image, seg_mask, image_distort      
     else:
       image_summary("final_tamper", image_distort[:,:,::-1])
-      #edge_mask = joint_input[:,:,4:]
-      
-      # print(image)
-      # print(seg_mask)
-      # print(edge_mask)
+
       image_summary("final_image", image[:,:,::-1])
       #image_summary("final_image", image[:,:,::-1])
       image_summary("final_seg_mask", seg_mask)
       #image_summary("final_edge_mask", edge_mask)
 
-      # Rescale to image-mean instead of [0, 1]
-      #image_distort = image_distort*255-image_mean
-      #image = image*255-image_mean
-      #image = image - image_mean
-      #return image, seg_mask, edge_mask
       return image, seg_mask1, image_distort
     #image = image_m  
   else:
@@ -625,10 +555,7 @@ def process_image_unet(encoded_image,
     image_distort = tf.multiply(image,1-tf.cast(seg_mask,tf.float32)) + tamper_region
     image_summary("final_tamper", image_distort[:,:,::-1])
     #edge_mask = joint_input[:,:,4:]
-    
-    # print(image)
-    # print(seg_mask)
-    # print(edge_mask)
+
     image_summary("final_image", image[:,:,::-1])
     #image_summary("final_image", image[:,:,::-1])
     image_summary("final_seg_mask", seg_mask)
@@ -706,13 +633,7 @@ def process_image_pair(encoded_image,
   tamper_image = tf.image.convert_image_dtype(tamper_image, dtype=tf.float32)
   #image = tf.cast(image, dtype=tf.float32)
   seg_mask = tf.image.convert_image_dtype(seg_mask, dtype=tf.float32)
-  #seg_mask = tf.cast(seg_mask, dtype=tf.float32)
-  #edge_mask = tf.cast(edge_mask, dtype=tf.float32)
 
-  #image_summary("original_image", image[:,:,::-1])
-  #image_summary("original_image", image[:,:,0:3])
-  #image_summary("original_seg_mask", seg_mask)
-  #image_summary("original_edge_mask", edge_mask)
 
   # Resize image.
   assert (resize_height > 0) == (resize_width > 0)
@@ -745,21 +666,15 @@ def process_image_pair(encoded_image,
     image = joint[:,:,:3]
     tamper_image= joint[:,:,3:6]
     seg_mask = joint[:,:,6:7]
-  #edge_mask = tf.image.resize_images(edge_mask,
-                                #size=[resize_height, resize_width],
-                                #method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
   # Crop to final dimensions.
   #joint_input = tf.concat([image, seg_mask, edge_mask], axis=-1)
 
   
   if is_training:
-    #if random_scale:
-        #image, seg_mask = image_scaling(image, seg_mask)
 
     # Randomly mirror the images and labels.
-    #if random_mirror:
-        #image, seg_mask = image_mirroring(image, seg_mask)  
+
     joint_input = tf.concat([image, tamper_image, seg_mask], axis=-1)  
     #joint_input = tf.random_crop(joint_input, [height, width, 5])
     joint_input = tf.random_crop(joint_input, [resize_height, resize_height, 7])
@@ -798,21 +713,12 @@ def process_image_pair(encoded_image,
     tamper_region=distort[:,:,:3]
     seg_mask1=distort[:,:,3:4]
     image_m=distort[:,:,4:]
-    #tamper_region, seg_mask = image_scaling(tamper_region, seg_mask)
-    #tamper_scale=tf.concat([tamper_region, seg_mask], axis=-1)
-    #tamper_scale = tf.image.resize_image_with_crop_or_pad(tamper_scale, resize_height, resize_height)
-    #tamper_region=tamper_scale[:,:,:3]
-    #seg_mask = tamper_scale[:,:,3:4]
-    #tamper_region, seg_mask, image_m = image_mirroring(tamper_region,seg_mask,image)
     tamper_region= tf.multiply(tamper_region,tf.cast(seg_mask1,tf.float32))
     image_distort = tf.multiply(tamper_image,1-tf.cast(seg_mask1,tf.float32)) + tamper_region  
     if not is_authentic:
       image_summary("final_tamper", image_distort[:,:,::-1])
-      #edge_mask = joint_input[:,:,4:]
       
-      # print(image)
-      # print(seg_mask)
-      # print(edge_mask)
+
       image_summary("final_image", image[:,:,::-1])
       #image_summary("final_image", image[:,:,::-1])
       image_summary("final_seg_mask", seg_mask)
@@ -827,11 +733,8 @@ def process_image_pair(encoded_image,
       return image, tamper_image, seg_mask, image_distort      
     else:
       image_summary("final_tamper", image_distort[:,:,::-1])
-      #edge_mask = joint_input[:,:,4:]
-      
-      # print(image)
-      # print(seg_mask)
-      # print(edge_mask)
+
+
       image_summary("final_image", image[:,:,::-1])
       #image_summary("final_image", image[:,:,::-1])
       image_summary("final_seg_mask", seg_mask)
@@ -840,19 +743,14 @@ def process_image_pair(encoded_image,
       # Rescale to image-mean instead of [0, 1]
       image_distort = image_distort*255-image_mean
       image = image*255-image_mean
-      #image = image - image_mean
-      #return image, seg_mask, edge_mask
+
       return image, tamper_image, seg_mask1, image_distort  
   else:
 
     tamper_region= tf.multiply(tamper_region,tf.cast(seg_mask,tf.float32))
     image_distort = tf.multiply(tamper_image,1-tf.cast(seg_mask,tf.float32)) + tamper_region
     image_summary("final_tamper", image_distort[:,:,::-1])
-    #edge_mask = joint_input[:,:,4:]
-    
-    # print(image)
-    # print(seg_mask)
-    # print(edge_mask)
+
     image_summary("final_image", image[:,:,::-1])
     image_summary("tamper_image", tamper_image[:,:,::-1])
     image_summary("final_seg_mask", seg_mask)
@@ -864,8 +762,7 @@ def process_image_pair(encoded_image,
     image_distort = image_distort*255-image_mean
     tamper_image = tamper_image*255-image_mean
     image = image*255-image_mean
-    #image = image - image_mean
-    #return image, seg_mask, edge_mask
+
     return image, tamper_image, seg_mask, image_distort
 
 def conv(batch_input, out_channels, stride,kernel=4, name="conv",padding='VALID'):
@@ -912,29 +809,6 @@ def final_conv(batch_input, out_channels=1, stride=1):
     return conv
 
 
-
-# # always keep batchnorm in training mode
-# def batchnorm(input):
-#   with tf.variable_scope("batchnorm"):
-#     # this block looks like it has 3 inputs on the graph unless we do this
-#     input = tf.identity(input)
-
-#     channels = input.get_shape()[3]
-#     offset = tf.get_variable("offset",
-#                              [channels],
-#                              dtype=tf.float32,
-#                              initializer=tf.zeros_initializer())
-#     scale = tf.get_variable("scale",
-#                       [channels],
-#                       dtype=tf.float32,
-#                       initializer=tf.random_normal_initializer(1.0, 0.02))
-#     mean, variance = tf.nn.moments(input, axes=[0, 1, 2], keep_dims=False)
-#     variance_epsilon = 1e-5
-#     normalized = tf.nn.batch_normalization(input, mean, variance, offset,
-#                             scale, variance_epsilon=variance_epsilon)
-#     return normalized
-
-# seperate batch norm training and testing
 
 def dice_loss(label, logits, smooth=1e-9):
   label = tf.cast(label, tf.float32)
@@ -1048,98 +922,6 @@ def append_index(filesets, image_dict, output_dir, step=False):
   return index_path
 
 
-# Inception V3 model
-
-def inception_v3(images,
-                 trainable=True,
-                 is_training=True,
-                 weight_decay=0.00004,
-                 stddev=0.1,
-                 dropout_keep_prob=0.8,
-                 use_batch_norm=True,
-                 batch_norm_params=None,
-                 add_summaries=False,
-                 scope="InceptionV3"):
-  """Builds an Inception V3 subgraph for image embeddings.
-
-  Args:
-    images: A float32 Tensor of shape [batch, height, width, channels].
-    trainable: Whether the inception submodel should be trainable or not.
-    is_training: Boolean indicating training mode or not.
-    weight_decay: Coefficient for weight regularization.
-    stddev: The standard deviation of the trunctated normal weight initializer.
-    dropout_keep_prob: Dropout keep probability.
-    use_batch_norm: Whether to use batch normalization.
-    batch_norm_params: Parameters for batch normalization. See
-      tf.contrib.layers.batch_norm for details.
-    add_summaries: Whether to add activation summaries.
-    scope: Optional Variable scope.
-
-  Returns:
-    end_points: A dictionary of activations from inception_v3 layers.
-  """
-  # Only consider the inception model to be in training mode if it's trainable.
-  is_inception_model_training = trainable and is_training
-
-  if use_batch_norm:
-    # Default parameters for batch normalization.
-    if not batch_norm_params:
-      batch_norm_params = {
-          "is_training": is_inception_model_training,
-          "trainable": trainable,
-          # Decay for the moving averages.
-          "decay": 0.9997,
-          # Epsilon to prevent 0s in variance.
-          "epsilon": 0.001,
-          # Collection containing the moving mean and moving variance.
-          "variables_collections": {
-              "beta": None,
-              "gamma": None,
-              "moving_mean": ["moving_vars"],
-              "moving_variance": ["moving_vars"],
-          }
-      }
-  else:
-    batch_norm_params = None
-
-  if trainable:
-    weights_regularizer = tf.contrib.layers.l2_regularizer(weight_decay)
-  else:
-    weights_regularizer = None
-
-  with tf.variable_scope(scope, "InceptionV3", [images]) as scope:
-    with slim.arg_scope(
-        [slim.conv2d, slim.fully_connected],
-        weights_regularizer=weights_regularizer,
-        trainable=trainable):
-      with slim.arg_scope(
-          [slim.conv2d],
-          weights_initializer=tf.truncated_normal_initializer(stddev=stddev),
-          activation_fn=tf.nn.relu,
-          normalizer_fn=slim.batch_norm,
-          normalizer_params=batch_norm_params):
-        net, end_points = inception_v3_base(images, scope=scope)
-        with tf.variable_scope("logits"):
-          shape = net.get_shape()
-          net = slim.avg_pool2d(net, shape[1:3], padding="VALID", scope="pool")
-          net = slim.dropout(
-              net,
-              keep_prob=dropout_keep_prob,
-              is_training=is_inception_model_training,
-              scope="dropout")
-          net = slim.flatten(net, scope="flatten")
-
-  # Add summaries.
-  if add_summaries:
-    for v in end_points.values():
-      tf.contrib.layers.summaries.summarize_activation(v)
-
-  return net
-
-
-
-
-
 n_kernels = 3
 kernel = np.zeros((5, 5, 3, n_kernels))
 c = np.zeros((n_kernels, 5, 5))
@@ -1178,28 +960,6 @@ def lrelu(x, a=0.2):
     return (0.5 * (1 + a)) * x + (0.5 * (1 - a)) * tf.abs(x)
 
 
-# # always keep batchnorm in training mode
-# def batchnorm(input):
-#   with tf.variable_scope("batchnorm"):
-#     # this block looks like it has 3 inputs on the graph unless we do this
-#     input = tf.identity(input)
-
-#     channels = input.get_shape()[3]
-#     offset = tf.get_variable("offset",
-#                              [channels],
-#                              dtype=tf.float32,
-#                              initializer=tf.zeros_initializer())
-#     scale = tf.get_variable("scale",
-#                       [channels],
-#                       dtype=tf.float32,
-#                       initializer=tf.random_normal_initializer(1.0, 0.02))
-#     mean, variance = tf.nn.moments(input, axes=[0, 1, 2], keep_dims=False)
-#     variance_epsilon = 1e-5
-#     normalized = tf.nn.batch_normalization(input, mean, variance, offset,
-#                             scale, variance_epsilon=variance_epsilon)
-#     return normalized
-
-# seperate batch norm training and testing
 
 def deconv(batch_input, out_channels):
   with tf.variable_scope("deconv"):
@@ -1220,140 +980,3 @@ def deconv(batch_input, out_channels):
     return conv
 
 
-def focal_loss(labels, logits, gamma=2.0, alpha=0.25):
-    """
-    focal loss for multi-classification
-    FL(p_t)=-alpha(1-p_t)^{gamma}ln(p_t)
-    Notice: logits is probability after softmax
-    gradient is d(Fl)/d(p_t) not d(Fl)/d(x) as described in paper
-    d(Fl)/d(p_t) * [p_t(1-p_t)] = d(Fl)/d(x)
-    Lin, T.-Y., Goyal, P., Girshick, R., He, K., & Dollár, P. (2017).
-    Focal Loss for Dense Object Detection, 130(4), 485–491.
-    https://doi.org/10.1016/j.ajodo.2005.02.022
-    :param labels: ground truth labels, shape of [batch_size]
-    :param logits: model's output, shape of [batch_size, num_cls]
-    :param gamma:
-    :param alpha:
-    :return: shape of [batch_size]
-    """
-    epsilon = 1.e-12
-    #labels = tf.to_int64(labels)
-    #labels = tf.convert_to_tensor(labels, tf.int64)
-    #logits = tf.convert_to_tensor(logits, tf.float32)
-    num_cls = logits.shape[1]
-    logits = tf.nn.softmax(logits)
-    model_out = tf.add(logits, epsilon)
-    onehot_labels = tf.one_hot(labels, num_cls)
-    #pdb.set_trace()
-    ce = tf.multiply(onehot_labels, -tf.log(model_out))
-    weight = tf.multiply(onehot_labels, tf.pow(tf.subtract(1., model_out), gamma))
-    fl = tf.multiply(alpha, tf.multiply(weight, ce))
-    #pdb.set_trace()
-    #reduced_fl = tf.reduce_sum(tf.reduce_max(fl,axis=1))
-    reduced_fl = tf.reduce_mean(tf.reduce_max(fl,axis=1))
-    #reduced_fl = tf.reduce_sum(fl)  # same as reduce_max
-    return reduced_fl
-def focal_loss_sigmoid(labels,logits,alpha=0.25,gamma=2):
-    """
-    Computer focal loss for binary classification
-    Args:
-      labels: A int32 tensor of shape [batch_size].
-      logits: A float32 tensor of shape [batch_size].
-      alpha: A scalar for focal loss alpha hyper-parameter. If positive samples number
-      > negtive samples number, alpha < 0.5 and vice versa.
-      gamma: A scalar for focal loss gamma hyper-parameter.
-    Returns:
-      A tensor of the same shape as `lables`
-    """
-    y_pred=tf.nn.sigmoid(logits)
-    labels=tf.to_float(labels)
-    #pdb.set_trace()
-    L=tf.reduce_mean(-labels*(1-alpha)*((1-y_pred)*gamma)*tf.log(y_pred+1.e-12)-\
-      (1-labels)*alpha*(y_pred**gamma)*tf.log(1-y_pred+1.e-12))
-    return L
-def balance_loss(labels, logits,batch_size):
-    """
-    focal loss for multi-classification
-    FL(p_t)=-alpha(1-p_t)^{gamma}ln(p_t)
-    Notice: logits is probability after softmax
-    gradient is d(Fl)/d(p_t) not d(Fl)/d(x) as described in paper
-    d(Fl)/d(p_t) * [p_t(1-p_t)] = d(Fl)/d(x)
-    Lin, T.-Y., Goyal, P., Girshick, R., He, K., & Dollár, P. (2017).
-    Focal Loss for Dense Object Detection, 130(4), 485–491.
-    https://doi.org/10.1016/j.ajodo.2005.02.022
-    :param labels: ground truth labels, shape of [batch_size]
-    :param logits: model's output, shape of [batch_size, num_cls]
-    :param gamma:
-    :param alpha:
-    :return: shape of [batch_size]
-    """
-    epsilon = 1.e-9
-    #labels = tf.to_int64(labels)
-    #labels = tf.convert_to_tensor(labels, tf.int64)
-    #logits = tf.convert_to_tensor(logits, tf.float32)
-    num_cls = logits.shape[1]
-    #pixel_num=logits.get_shape()[0]
-    pixel_num = 256*256*batch_size
-    logits = tf.nn.softmax(logits)
-    model_out = tf.add(logits, epsilon)
-    onehot_labels = tf.one_hot(labels, num_cls)
-    neg = tf.squeeze(tf.where(tf.less(labels, 1)), 1)
-    pos = tf.squeeze(tf.where(tf.equal(labels, 1)), 1)
-    #pdb.set_trace()
-    ce = tf.reduce_max(tf.multiply(onehot_labels, -tf.log(model_out)),axis=1)
-    neg_loss=tf.reduce_mean((tf.reduce_sum(labels)/pixel_num)*tf.cast(tf.gather(ce, neg),tf.float64))
-    pos_loss=tf.reduce_mean((1-tf.reduce_sum(labels)/pixel_num)*tf.cast(tf.gather(ce, pos),tf.float64))
-    #ce_balance = tf.where(labels>0,1-tf.reduce_sum(labels)/pixel_num,tf.reduce_sum(labels)/pixel_num)*tf.multiply(onehot_labels, -tf.log(model_out))
-    #weight = tf.multiply(onehot_labels, tf.pow(tf.subtract(1., model_out), gamma))
-    #fl = tf.multiply(alpha, tf.multiply(weight, ce))
-    #pdb.set_trace()
-    #reduced_fl = tf.reduce_sum(tf.reduce_max(fl,axis=1))
-    reduced_fl = neg_loss+pos_loss
-    #reduced_fl = tf.reduce_sum(fl)  # same as reduce_max
-    return tf.cast(reduced_fl, tf.float32)
-def CRF(image, corase_res,n_classes=2):
-  import pydensecrf.densecrf as dcrf
-
-  from pydensecrf.utils import compute_unary, create_pairwise_bilateral, \
-      create_pairwise_gaussian, softmax_to_unary
-
-
-
-  # The input should be the negative of the logarithm of probability values
-  # Look up the definition of the softmax_to_unary for more information
-  #pdb.set_trace()
-  h, w, _ = corase_res.shape
-  corase_res = corase_res.transpose(2, 0, 1).copy(order='C')
-  U = -np.log(corase_res+1e-9).astype(np.float32)
-  U = U.reshape((n_classes, -1))
-  d = dcrf.DenseCRF2D(h, w, n_classes)
-  #unary = softmax_to_unary(softmax)
-  # The inputs should be C-continious -- we are using Cython wrapper
-
-  #unary = np.ascontiguousarray(unary)
-  
-  #d = dcrf.DenseCRF(image.shape[0] * image.shape[1], 2)
-  d.setUnaryEnergy(U)
-
-  # This potential penalizes small pieces of segmentation that are
-  # spatially isolated -- enforces more spatially consistent segmentations
-  feats = create_pairwise_gaussian(sdims=(10, 10), shape=image.shape[:2])
-
-  d.addPairwiseEnergy(feats, compat=3,
-                      kernel=dcrf.DIAG_KERNEL,
-                      normalization=dcrf.NORMALIZE_SYMMETRIC)
-
-  # This creates the color-dependent features --
-  # because the segmentation that we get from CNN are too coarse
-  # and we can use local color features to refine them
-  feats = create_pairwise_bilateral(sdims=(50, 50), schan=(20, 20, 20),
-                                     img=image, chdim=2)
-
-  d.addPairwiseEnergy(feats, compat=10,
-                       kernel=dcrf.DIAG_KERNEL,
-                       normalization=dcrf.NORMALIZE_SYMMETRIC)
-  Q = d.inference(5)
-
-  res = np.array(Q, dtype=np.float32).reshape(
-        (n_classes, h, w)).transpose(1, 2, 0)
-  return res

@@ -6,7 +6,6 @@ This script computes a segmentation mask for a given image.
 from __future__ import print_function
 
 import argparse
-from datetime import datetime
 import os
 import sys
 import time
@@ -390,22 +389,6 @@ def main():
             if not os.path.exists(args.save_dir +'/'+ os.path.splitext(os.path.basename(imgname))[0]+'_gan.png'):
               cv2.imwrite(args.save_dir +'/'+ os.path.basename(imgname),(g_output_im[0]+IMG_MEAN).astype(np.uint8))
 
-              if False:
-                fig=plt.figure()
-                plt.subplot(141)
-                plt.imshow(tar_image_data[:,:,::-1].astype(np.uint8))
-                plt.axis('off')
-                plt.subplot(142)
-                plt.imshow(gt_mask,cmap='gray')
-                plt.axis('off')
-                plt.subplot(143)
-                plt.imshow((cp_im[0]+IMG_MEAN)[:,:,::-1].astype(np.uint8))
-                plt.axis('off')
-                plt.subplot(144)
-                plt.imshow((g_output_im[0]+IMG_MEAN)[:,:,::-1].astype(np.uint8))
-                plt.axis('off')
-                fig.savefig(args.save_dir +'/'+ os.path.splitext(os.path.basename(imgname))[0]+'_gan.jpg',bbox_inches='tight')
-                plt.close(fig)  
 
           else:
             preds,pred_scores, edge_pred_scores,seg_pred_scores = sess.run([pred,pred_score,edge_pred_score,seg_pred_score],{img:image_data.astype(np.uint8),seg_mask:gt_mask[:,:,np.newaxis]})
